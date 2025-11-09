@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Tarefas Diárias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f4f8;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(240, 244, 248, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn-gradient-blue {
+            background-image: linear-gradient(to right, #3b82f6 0%, #1e40af 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient-blue:hover {
+            background-image: linear-gradient(to right, #1e40af 0%, #3b82f6 100%);
+            box-shadow: 0 4px 15px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-gradient-red {
+            background-image: linear-gradient(to right, #ef4444 0%, #b91c1c 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient-red:hover {
+            background-image: linear-gradient(to right, #b91c1c 0%, #ef4444 100%);
+            box-shadow: 0 4px 15px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            transform: scale(1);
+            transition: transform 0.3s ease-out;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="loading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="container mx-auto p-4 sm:p-8 max-w-4xl">
+        
+        <header class="text-center py-6 bg-white shadow-xl rounded-xl mb-8 border-t-4 border-blue-500">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-700">📋 Gerenciador de Tarefas Diárias</h1>
+        </header>
+
+        <section id="form-section" class="bg-white p-6 rounded-xl shadow-xl mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">➕ Adicionar Nova Tarefa</h2>
+            <form id="form-nova-tarefa" class="space-y-4">
+                
+                <div>
+                    <label for="titulo" class="block text-sm font-medium text-gray-700">Título</label>
+                    <input type="text" id="titulo" name="titulo" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div>
+                    <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <textarea id="descricao" name="descricao" rows="3"
+                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                </div>
+
+                <div>
+                    <label for="data-limite" class="block text-sm font-medium text-gray-700">Data Limite</label>
+                    <input type="date" id="data-limite" name="dataLimite"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div>
+                    <label for="status-id" class="block text-sm font-medium text-gray-700">Status</label>
+                    <p class="text-xs text-gray-500 mb-1">Padrão: 1 (Em Andamento). Opções: 2 (Concluída), 3 (Cancelada).</p>
+                    <select id="status-id" name="status" required
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-50 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="1" selected>1 - Em Andamento</option>
+                        <option value="2">2 - Concluída</option>
+                        <option value="3">3 - Cancelada</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="categoria-id" class="block text-sm font-medium text-gray-700">Categoria</label>
+                    <p class="text-xs text-gray-500 mb-1">Opções: 1 (Casa), 2 (Trabalho), 3 (Estudos).</p>
+                    <select id="categoria-id" name="categoria" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="1" selected>1 - Casa</option>
+                        <option value="2">2 - Trabalho</option>
+                        <option value="3">3 - Estudos</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white btn-gradient-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    💾 Salvar Tarefa
+                </button>
+            </form>
+            <div id="mensagem-form" class="mt-4 p-3 rounded-lg text-sm hidden"></div>
+        </section>
+
+        <section class="bg-white p-6 rounded-xl shadow-xl">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">⏳ Tarefas</h2>
+            <div id="lista-tarefas" class="space-y-3">
+                <p class="text-center text-gray-500" id="mensagem-vazio">Carregando tarefas...</p>
+            </div>
+            <div id="mensagem-api-erro" class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm hidden"></div>
+        </section>
+
+    </div>
+
+    <div id="modal-edicao" class="modal hidden">
+    </div>
+
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api/tarefas';
+        const listaTarefasDiv = document.getElementById('lista-tarefas');
+        const mensagemVazio = document.getElementById('mensagem-vazio');
+        const mensagemApiErro = document.getElementById('mensagem-api-erro');
+        const loadingDiv = document.getElementById('loading');
+        const formNovaTarefa = document.getElementById('form-nova-tarefa');
+        const mensagemForm = document.getElementById('mensagem-form');
+        const modalEdicaoDiv = document.getElementById('modal-edicao');
+
+        const STATUS_MAP = {
+            1: { cor: 'bg-blue-500', texto: 'Em Andamento', corBorda: 'border-blue-500' },
+            2: { cor: 'bg-green-500', texto: 'Concluída', corBorda: 'border-green-500' },
+            3: { cor: 'bg-red-500', texto: 'Cancelada', corBorda: 'border-red-500' }
+        };
+
+        const CATEGORIA_MAP = {
+            1: 'Casa',
+            2: 'Trabalho',
+            3: 'Estudos'
+        };
+
+        const CATEGORIA_OPTIONS = [
+            { id: 1, nome: 'Casa' },
+            { id: 2, nome: 'Trabalho' },
+            { id: 3, nome: 'Estudos' }
+        ];
+
+        const STATUS_OPTIONS = [
+            { id: 1, nome: 'Em Andamento' },
+            { id: 2, nome: 'Concluída' },
+            { id: 3, nome: 'Cancelada' }
+        ];
+
+
+        function mostrarLoading(mostrar) {
+            loadingDiv.classList.toggle('hidden', !mostrar);
+        }
+
+        function mostrarMensagem(elemento, mensagem, isSucesso, tempo = 5000) {
+            elemento.textContent = mensagem;
+            elemento.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            if (isSucesso) {
+                elemento.classList.add('bg-green-100', 'text-green-700');
+            } else {
+                elemento.classList.add('bg-red-100', 'text-red-700');
+            }
+            setTimeout(() => elemento.classList.add('hidden'), tempo);
+        }
+
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (i === maxRetries - 1) {
+                            const errorBody = await response.json().catch(() => ({}));
+                            const errorMessage = errorBody.message || `Erro na API: ${response.status} ${response.statusText}`;
+                            throw new Error(errorMessage);
+                        }
+                        console.warn(`Tentativa ${i + 1} falhou. Status: ${response.status}. Tentando novamente em ${2 ** i}s...`);
+                    } else {
+                        return response;
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    await sleep(2 ** i * 1000);
+                }
+            }
+            throw new Error("Falha na requisição da API após todas as tentativas.");
+        }
+
+
+        async function buscarTarefas() {
+            mostrarLoading(true);
+            listaTarefasDiv.innerHTML = '';
+            mensagemVazio.textContent = 'Carregando tarefas...';
+            mensagemVazio.classList.remove('hidden');
+            mensagemApiErro.classList.add('hidden');
+
+            try {
+                const response = await fetchWithRetry(API_BASE_URL);
+                const tarefas = await response.json();
+
+                if (tarefas.length === 0) {
+                    mensagemVazio.textContent = '🎉 Nenhuma tarefa encontrada. Adicione uma nova!';
+                } else {
+                    mensagemVazio.classList.add('hidden');
+                    tarefas.sort((a, b) => {
+                        const dataA = a.dataLimite ? new Date(a.dataLimite) : Infinity;
+                        const dataB = b.dataLimite ? new Date(b.dataLimite) : Infinity;
+                        return dataA - dataB;
+                    });
+
+                    tarefas.forEach(tarefa => {
+                        listaTarefasDiv.appendChild(criarCardTarefa(tarefa));
+                    });
+                }
+            } catch (error) {
+                console.error("Erro ao carregar tarefas:", error);
+                mensagemVazio.classList.add('hidden');
+                mostrarMensagem(mensagemApiErro, `❌ Erro ao conectar/buscar dados da API. Verifique se o Spring Boot está rodando em http://localhost:8080. Detalhes: ${error.message}`, false, 10000);
+            } finally {
+                mostrarLoading(false);
+            }
+        }
+
+        function criarCardTarefa(tarefa) {
+            const statusId = tarefa.status && tarefa.status.id ? tarefa.status.id : 1;
+            const categoriaId = tarefa.categoria && tarefa.categoria.id ? tarefa.categoria.id : 'N/A';
+
+            const statusInfo = STATUS_MAP[statusId] || { cor: 'bg-gray-400', texto: 'Desconhecido', corBorda: 'border-gray-400' };
+            const categoriaNome = CATEGORIA_MAP[categoriaId] || 'N/A';
+
+            const card = document.createElement('div');
+            card.id = `tarefa-${tarefa.id}`;
+            card.className = `flex items-start justify-between bg-white p-5 rounded-xl shadow-md border-l-4 ${statusInfo.corBorda.replace('border-', 'border-')} transition duration-200 hover:shadow-lg`;
+            
+            card.innerHTML = `
+                <div class="flex-1 min-w-0 mr-4">
+                    <h3 class="text-xl font-bold text-gray-800 mb-1">${tarefa.titulo} <span class="text-sm font-normal text-gray-400">(ID: ${tarefa.id})</span></h3>
+                    <p class="text-gray-600 mb-3">${tarefa.descricao || '<span class="italic text-gray-400">Sem descrição</span>'}</p>
+                    
+                    <div class="flex flex-wrap items-center text-sm space-x-3">
+                        <span class="mr-3 ${statusInfo.cor} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md">
+                            ${statusInfo.texto}
+                        </span>
+                        
+                        <span class="text-gray-500 flex items-center">
+                            📅 Data Limite: ${tarefa.dataLimite || 'N/A'}
+                        </span>
+                        
+                        <span class="text-xs text-gray-500 flex items-center mt-1 sm:mt-0">
+                            🏷️ Categoria: ${categoriaNome} (ID: ${categoriaId})
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button onclick="abrirModalEdicao(${tarefa.id}, ${statusId}, ${categoriaId})" class="text-blue-500 hover:text-white p-2 transition duration-200 rounded-full hover:bg-blue-500" title="Editar Status/Categoria">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-9-4l9-9m-3 3l3-3m-6 6l3-3"></path></svg>
+                    </button>
+
+                    <button onclick="excluirTarefa(${tarefa.id})" class="text-red-500 hover:text-white p-2 transition duration-200 rounded-full hover:bg-red-500" title="Excluir Tarefa">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            `;
+            return card;
+        }
+
+        async function excluirTarefa(id) {
+            const confirmacao = document.createElement('div');
+            confirmacao.className = 'fixed inset-0 bg-gray-900 bg-opacity-75 flex justify-center items-center z-50 p-4';
+            confirmacao.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform transition-all scale-100">
+                    <h4 class="text-xl font-bold text-red-600 mb-3">⚠️ Confirmação de Exclusão</h4>
+                    <p class="mb-5 text-gray-700">Tem certeza que deseja excluir a Tarefa ID ${id}? Esta ação é irreversível.</p>
+                    <div class="flex justify-end space-x-3">
+                        <button id="btn-cancelar" class="px-5 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150">Cancelar</button>
+                        <button id="btn-confirmar" class="px-5 py-2 text-white rounded-lg shadow-lg btn-gradient-red transition duration-150">Sim, Excluir</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmacao);
+
+            document.getElementById('btn-cancelar').onclick = () => confirmacao.remove();
+            document.getElementById('btn-confirmar').onclick = async () => {
+                confirmacao.remove();
+
+                mostrarLoading(true);
+                try {
+                    await fetchWithRetry(`${API_BASE_URL}/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const card = document.getElementById(`tarefa-${id}`);
+                    if (card) {
+                        card.classList.add('opacity-0', 'scale-95', 'transition-all', 'duration-300');
+                        setTimeout(() => {
+                            card.remove();
+                            if (listaTarefasDiv.children.length === 0) {
+                                mensagemVazio.textContent = '🎉 Nenhuma tarefa encontrada. Adicione uma nova!';
+                                mensagemVazio.classList.remove('hidden');
+                            }
+                        }, 300); 
+                    }
+                    mostrarMensagem(mensagemForm, `✅ Tarefa ID ${id} excluída com sucesso!`, true);
+
+                } catch (error) {
+                    console.error("Erro ao excluir tarefa:", error);
+                    mostrarMensagem(mensagemForm, `❌ Falha ao excluir Tarefa ID ${id}. Erro: ${error.message}`, false);
+                } finally {
+                    mostrarLoading(false);
+                }
+            };
+        }
+
+
+        function criarSelectOptions(optionsArray, selectedId) {
+            return optionsArray.map(opt => 
+                `<option value="${opt.id}" ${opt.id === selectedId ? 'selected' : ''}>${opt.id} - ${opt.nome}</option>`
+            ).join('');
+        }
+
+        function abrirModalEdicao(tarefaId, statusIdAtual, categoriaIdAtual) {
+            modalEdicaoDiv.classList.remove('hidden');
+            modalEdicaoDiv.innerHTML = `
+                <div class="modal-content">
+                    <h4 class="text-2xl font-bold text-blue-700 mb-4 border-b pb-2">✏️ Editar Tarefa ID ${tarefaId}</h4>
+                    
+                    <form id="form-edicao" data-tarefa-id="${tarefaId}" class="space-y-4">
+                        
+                        <div>
+                            <label for="modal-status-id" class="block text-sm font-medium text-gray-700">Status</label>
+                            <select id="modal-status-id" name="status" required
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-50 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                ${criarSelectOptions(STATUS_OPTIONS, statusIdAtual)}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="modal-categoria-id" class="block text-sm font-medium text-gray-700">Categoria</label>
+                            <select id="modal-categoria-id" name="categoria" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                ${criarSelectOptions(CATEGORIA_OPTIONS, categoriaIdAtual)}
+                            </select>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" onclick="fecharModalEdicao()" class="px-5 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150">Cancelar</button>
+                            <button type="submit" class="px-5 py-2 text-white rounded-lg shadow-lg btn-gradient-blue transition duration-150">Salvar Alterações</button>
+                        </div>
+                    </form>
+                    <div id="mensagem-modal" class="mt-4 p-3 rounded-lg text-sm hidden"></div>
+                </div>
+            `;
+
+            document.getElementById('form-edicao').addEventListener('submit', salvarEdicaoTarefa);
+        }
+
+        function fecharModalEdicao() {
+            modalEdicaoDiv.classList.add('hidden');
+            modalEdicaoDiv.innerHTML = '';
+        }
+
+        async function salvarEdicaoTarefa(e) {
+            e.preventDefault();
+            const form = e.target;
+            const tarefaId = form.getAttribute('data-tarefa-id');
+            const mensagemModal = document.getElementById('mensagem-modal');
+
+            mostrarLoading(true);
+            mensagemModal.classList.add('hidden');
+
+            const novoStatusId = parseInt(document.getElementById('modal-status-id').value);
+            const novaCategoriaId = parseInt(document.getElementById('modal-categoria-id').value);
+
+            try {
+                const originalResponse = await fetchWithRetry(`${API_BASE_URL}/${tarefaId}`);
+                const tarefaOriginal = await originalResponse.json();
+
+                const dadosCompletos = {
+                    ...tarefaOriginal, 
+                    status: { id: novoStatusId },
+                    categoria: { id: novaCategoriaId }
+                };
+
+                const response = await fetchWithRetry(`${API_BASE_URL}/${tarefaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dadosCompletos)
+                });
+
+                if (response.ok) {
+                    const tarefaAtualizada = await response.json();
+                    
+                    const cardAntigo = document.getElementById(`tarefa-${tarefaId}`);
+                    if (cardAntigo) {
+                        const novoCard = criarCardTarefa(tarefaAtualizada);
+                        cardAntigo.parentNode.replaceChild(novoCard, cardAntigo);
+                    }
+
+                    mostrarMensagem(mensagemForm, `✅ Tarefa ID ${tarefaId} atualizada com sucesso para status: ${STATUS_MAP[novoStatusId].texto}!`, true);
+                    fecharModalEdicao();
+                    
+                    await buscarTarefas();
+
+                } else {
+                    const erroMsg = await response.text().catch(() => "Erro desconhecido");
+                    throw new Error(erroMsg);
+                }
+
+            } catch (error) {
+                console.error("Erro ao salvar edição:", error);
+                mostrarMensagem(mensagemModal, `❌ Falha ao atualizar Tarefa ID ${tarefaId}. Erro: ${error.message}`, false, 7000);
+            } finally {
+                mostrarLoading(false);
+            }
+        }
+
+
+        formNovaTarefa.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            mostrarLoading(true);
+            mensagemForm.classList.add('hidden');
+
+            const formData = new FormData(formNovaTarefa);
+            
+            const novaTarefa = {
+                titulo: formData.get('titulo'),
+                descricao: formData.get('descricao'),
+                dataLimite: formData.get('dataLimite') || null,
+                categoria: { id: parseInt(formData.get('categoria')) },
+                status: { id: parseInt(formData.get('status')) }
+            };
+
+            if (!novaTarefa.dataLimite) {
+                delete novaTarefa.dataLimite;
+            }
+
+            try {
+                const response = await fetchWithRetry(API_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(novaTarefa)
+                });
+
+                const tarefaCriada = await response.json();
+
+                if (response.ok && tarefaCriada.id) {
+                    await buscarTarefas(); 
+
+                    mensagemVazio.classList.add('hidden');
+                    formNovaTarefa.reset();
+                    document.getElementById('status-id').value = 1;
+                    document.getElementById('categoria-id').value = 1; 
+                    mostrarMensagem(mensagemForm, `✅ Tarefa "${tarefaCriada.titulo}" (ID: ${tarefaCriada.id}) criada com sucesso!`, true);
+                } else {
+                     const erroMsg = tarefaCriada.message || tarefaCriada.mensagem || "Erro desconhecido ao tentar criar a tarefa.";
+                     throw new Error(erroMsg);
+                }
+
+            } catch (error) {
+                console.error("Erro ao criar tarefa:", error);
+                mostrarMensagem(mensagemForm, `❌ Falha ao criar tarefa. Verifique os dados (Categoria/Status ID) e se o servidor está ativo. Erro: ${error.message}`, false);
+            } finally {
+                mostrarLoading(false);
+            }
+        });
+        
+        window.addEventListener('load', buscarTarefas);
+
+    </script>
+
+</body>
+</html>
